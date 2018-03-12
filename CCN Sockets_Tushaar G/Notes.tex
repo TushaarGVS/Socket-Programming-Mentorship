@@ -1,0 +1,220 @@
+\documentclass[10pt]{article}
+\usepackage[a4paper, margin=0.5in]{geometry}
+\usepackage{listings}
+\usepackage{hyperref}
+
+\makeatletter
+\def\hlinewd#1{%
+  \noalign{\ifnum0=`}\fi\hrule \@height #1 \futurelet
+   \reserved@a\@xhline}
+\makeatother
+
+\title{\textbf{Socket Programming - Lecture Notes}}
+\author{Tushaar Gangarapu (\href{mailto:tushaargvsg45@gmail.com}{tushaargvsg45@gmail.com})}
+
+\begin{document}
+\lstset{showstringspaces=false}
+\maketitle
+
+\section{Why and What of Sockets?}
+Sockets are used to build \textit{networked applications}. Sockets are \textit{end-point of communication}. A socket is associated with each end-host (user) of an application. Some examples of the same include \textit{FTP}, \textit{P2P} etc. They are identified by both \textit{IP address} and \textit{port number}.
+
+\subsection{Types of Sockets}
+Two types of sockets- Stream sockets, Datagram sockets
+\begin{itemize}
+\item \textbf{Stream sockets (TCP)}: SOCK\_STREAM
+	\begin{itemize}
+		\item Connection oriented (includes establishment termination)
+		\item Reliable, in order delivery
+		\item At-most-once delivery, no duplicates
+		\item File-like interface
+		\item \textit{Eg}: ssh, http
+	\end{itemize}	 
+
+\item \textbf{Datagram sockets (UDP)}: SOCK\_DGRAM
+	\begin{itemize}
+		\item Connectionless (just data-transfer)
+		\item “Best-effort” delivery, possibly lower variance in delay	
+		\item Packet-like interface
+		\item \textit{Eg}: IP Telephony, streaming audio
+	\end{itemize}	 
+\end{itemize}
+
+\subsection{How do Sockets Work?}
+IP Telephony example (between two entities, say Adam and Eve):
+\begin{itemize}
+\item Necessity of a \textit{telephone}
+\item Necessity to identify a unique \textit{phone number} associated with a telephone
+\item The ringing mechanism on Eve's phone must be on!
+\item Adam dials Eve's number
+\item Telephone rings, Eve answers
+\item Data Exchange happens
+\item Hang-up the phone
+\end{itemize}
+\vspace{5mm}
+Extending the IP Telephony analogy:
+\begin{itemize}
+\item An end point for communication
+\item An address to distinguish the end-host
+\item The receiver waits (listens) for an active connection
+\item The sender initiates a connection to the receiver
+\item Data exchange is done once the establishment of connection is made
+\item Close the connection
+\end{itemize}
+\vspace{5mm}
+In socket terminology:
+\begin{itemize}
+\item \textbf{\texttt{socket()}}: end-point
+\item \textbf{\texttt{bind()}}: unique address = IP address + port number
+\item \textbf{\texttt{listen()}}: wait for the sender
+\item \textbf{\texttt{connect()}}: sender initiates!
+\item \textbf{\texttt{accept()}}: receiver accepts the connection
+\item \textbf{\texttt{send()}}, \textbf{\texttt{recv()}}: data exchange
+\item \textbf{\texttt{close()}}: communication termination
+\end{itemize}
+
+\subsection{Client-Server Paradigm}
+\begin{tabular}{c c}
+\hlinewd{1.5pt}
+\textbf{Client} & \textbf{Server} \\
+\hline
+Sometimes on & Always on \\
+Initiates request to the sender when interested & Serve services to many clients \\
+Needs to know server's address & Needs a fixed address \\
+\textit{Eg}: Web browser & \textit{Eg}: Web server \\
+\hlinewd{1.5pt}
+\end{tabular}
+
+\section{Pre-requisites for Programming with Sockets (Stream Sockets)}
+\begin{tabular}{c c | c c}
+\hlinewd{1.5pt}
+\textbf{Client Process Activity} & \textbf{System Call} & \textbf{Server Process Activity}& \textbf{System Call} \\
+\hline
+create a socket & \texttt{socket()} & create a socket & \texttt{socket()} \\
+bind a socket address (optional) & \texttt{bind()} & bind a socket address & \texttt{bind()} \\
+ & & listen for incoming connection requests & \texttt{listen()} \\
+request a connection & \texttt{connect()} & & \\
+ & & accept connection & \texttt{accept()} \\
+send data & \texttt{send()} & & \\
+ & & receive data & \texttt{recv()} \\
+ & & send data & \texttt{send()} \\
+receive data & \texttt{recv()} & & \\
+disconnect socket (optional) & \texttt{close()} & disconnect socket (optional) & \texttt{close()} \\
+\hlinewd{1.5pt}
+\end{tabular}
+
+\subsection{Datastructures Used in Socket Programming}
+\textbf{Assumption}: Single IP address for a host (also known as, single homed; not more than one interface (`\textit{if}')) needed to bind IP address and port number.
+
+\begin{lstlisting}[language=C]
+// `sockaddr': general and `sockaddr_in': internet specific applications
+struct sockaddr {
+	unsigned short sa_family ;	// sa_family = AF_INET: networked applications
+	char sa_data[14] ;		// IP address and port number to bind to
+}
+
+/*`sockaddr_in' and `sockaddr' are of the same size
+ * we cast `sockaddr_in' into `sockaddr' while programming
+ */
+struct sockaddr_in {
+	short sin_family ;		// sin_family is same as sa_family
+	unsigned short sin_port ; 	// Port number: 0 - 65535 (0 - 1024: reserved)
+	struct in_addr sin_addr ;	// IP address
+	char sin_zero[8] ;		// sin_zero is the padding
+}
+
+struct in_addr {
+	unsigned long s_addr ;		// 4 bytes long integer IP (10.10.54.4)
+}
+/* sockaddr_in addr ;
+ * addr.sin_family = AF_INET ;
+ * addr.sin_port = htons(5576) ;
+ * addr.sin_addr.s_addr = INADDR_ANY ;
+ * bzero(&addr, 0)
+ */
+\end{lstlisting}
+
+\subsection{Network Byte Ordering (Big Endian)}
+\textbf{Endianness}: Storing of integers from left to right (or) right to left in the memory.
+\par
+\textit{Eg}: 0x0A0B0C0D (32-bit integer); How to store? \par
+Big Endian: [0x0A][0x0B][0x0C][0x0D] \par
+Little Endian: [0x0D][0x0C][0x0B][0x0A] \par
+\vspace{5mm}
+Usually, the microprocessor pre-processes to store integers as in little or big endian format on the host computer. Now, if one host stores and transfers data in big endian while other in little endian, then the discrepency arrising due to the decision of MSB and LSB, brings about the necessity to standardize the way of storing integers. \par 
+
+For network communication, \textbf{network byte ordering} or \textbf{big endian} format must be used, irrespective of the host byte ordering (Host Byte Order $\rightarrow$ Network Byte Order).
+
+\subsection{Necessary Functions}
+\textbf{IP Address}:
+\begin{itemize}
+\item \texttt{inet\_aton()}: ASCII-to-Network (10.10.54.4 $\rightarrow$ 0000100100001$\dots$)
+\item \texttt{inet\_ntoa()}: Network-to-ASCII (0000100100001$\dots$ $\rightarrow$ 10.10.54.4)
+\item \texttt{inet\_pton()}: Presentation-to-Network (\texttt{inet\_pton(AF\_INET, "127.0.0.1", \&(sa.sin\_addr))})
+\item \texttt{inet\_ntop()}: Network-to-Presentation (\texttt{inet\_ntop(AF\_INET, \&(sa.sin\_addr), str, INET\_ADDRSTRLEN);})
+\item \texttt{bzero(char *c, int n)}: binds `n' zeros, starting from character `c'
+\end{itemize}
+\textbf{Byte Ordering}:
+\begin{itemize}
+\item \texttt{htons()}, \texttt{htonl()}: Host-to-Network (short/long)
+\item \texttt{ntohs()}, \texttt{ntohl()}: Network-to-Host (short/long)
+\end{itemize}
+
+\section{Programming with Sockets}
+\subsection{System Calls}
+3.1.1. \textbf{\texttt{socket()}: end-point of communication}
+\begin{itemize}
+\item \texttt{int sockfd = socket(int domain, int type, int protocol)}
+\item domain = PF\_INET (IPv4 Communication Protocols)
+\item type = SOCK\_STREAM for TCP, SOCK\_DGRAM for UDP
+\item protocol = 0 (usually) if a single protocol for communication is used, else use \texttt{getprotoent()}
+\item retuns integer socket descriptor (if proper) else returns -1 (if error)
+\end{itemize}
+\textbf{AF\_INET vs. PF\_INET}: Intially, it was thought that maybe an address family ("AF" in "AF\_INET") might support several protocols that were referenced by their protocol family ("PF" in "PF\_INET") which did not happen. So the correct thing to do, is to use AF\_INET in  \texttt{struct sockaddr\_in} and PF\_INET in your call to \texttt{socket()}. But practically speaking, you can use AF\_INET everywhere.
+\vspace{2mm}
+\\3.1.2. \textbf{\texttt{bind()}: get unique address (IP address + port number)}
+\begin{itemize}
+\item \texttt{int bind(int sockfd, struct sockaddr *addr, socklen\_t addrlen)}
+\item sockfd = socker file descriptor
+\item addr = (\texttt{struct sockaddr *})\&addr: casting \texttt{sockaddr\_in} into \texttt{sockaddr} 
+\item addrlen = length of \texttt{sockaddr\_in}
+\end{itemize}
+3.1.3. \textbf{\texttt{listen()}: listen to incoming connections}
+\begin{itemize}
+\item \texttt{int listen(int sockfd, int backlog)}
+\item sockfd = socket file descriptor (from server \texttt{socket()})
+\item backlog = maximum length of the queue of pending connections for `sockfd' may grow
+\end{itemize}
+3.1.4. \textbf{\texttt{accept()}: accept a new client connection}
+\begin{itemize}
+\item \texttt{int accept(int sockfd, struct sockaddr *addr, socklen\_t *addrlen)}
+\item sockfd = socket file descriptor (from server \texttt{socket()})
+\item addr = client address (\texttt{sockaddr\_in} cast into \texttt{sockaddr}) on return of \texttt{accept()}
+\item addrlen = length of client \texttt{sockaddr\_in}
+\end{itemize}
+3.1.5. \textbf{\texttt{connect()}: connect to a server}
+\begin{itemize}
+\item \texttt{int connect(int sockfd, struct sockaddr *addr, socklen\_t *addrlen)}
+\item sockfd = socket file descriptor (from client \texttt{socket()})
+\item addr = remote server address (\texttt{sockaddr\_in} cast into \texttt{sockaddr})
+\item addrlen = length of remote server \texttt{sockaddr\_in}
+\end{itemize}
+3.1.6. \textbf{\texttt{send()}, \texttt{recv()}: data exchange}
+\begin{itemize}
+\item \texttt{int send(int sockfd, const void *buf, size\_t len, int flags)}
+\item \texttt{int recv(int sockfd, const void *buf, size\_t len, int flags)}
+\item sockfd = socket file descriptor
+\item buf = pointer to the buffer (data)
+\item len = size of the data buffer
+\item flags = 0 (usually no flags used); MSG\_CONFIRM, etc. can be used
+\item returns number of bytes actually sent or received
+\end{itemize}
+3.1.7. \textbf{\texttt{close()}: close the connection}
+\begin{itemize}
+\item \texttt{int close(int sockfd)}
+\item sockfd = socket file descriptor of the socket to be closed
+\end{itemize}
+\begin{center}
+\line(1,0){250}
+\end{center}
+\end{document}
